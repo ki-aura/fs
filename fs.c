@@ -8,6 +8,7 @@
 
 
 #define MAX_LINE_LEN 4096
+#define UNUSED(x) (void)(x)
 
 // ------------------ Options structure ------------------
 typedef struct {
@@ -33,10 +34,10 @@ typedef struct {
 
 
 // ------------------ Option Handlers ------------------
-void handle_ignore_case(Options *opts, const char *arg) { opts->ignore_case = true; }
-void handle_show_line_numbers(Options *opts, const char *arg) { opts->show_line_numbers = true; }
-void handle_show_filename(Options *opts, const char *arg) { opts->show_filename = true; }
-void handle_count_only(Options *opts, const char *arg) { opts->count_only = true; }
+void handle_ignore_case(Options *opts, const char *arg) {UNUSED(arg); opts->ignore_case = true; }
+void handle_show_line_numbers(Options *opts, const char *arg) {UNUSED(arg); opts->show_line_numbers = true; }
+void handle_show_filename(Options *opts, const char *arg) {UNUSED(arg); opts->show_filename = true; }
+void handle_count_only(Options *opts, const char *arg) {UNUSED(arg); opts->count_only = true; }
 
 void handle_before(Options *opts, const char *arg) {
     int n = atoi(arg + 2);  // parse "-bN"
@@ -141,6 +142,7 @@ void append_to_buffer(char *buf, size_t bufsize, const char *fmt, ...) {
     va_end(ap);
 
     // n is chars written. it could be >= remaining space if truncated, but buffer is still null-terminated
+    UNUSED(n);
 }
 
 // ------------------ Helper for stripping filename ---------

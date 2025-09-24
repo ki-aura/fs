@@ -7,7 +7,7 @@ else
 endif
 
 # Common flags
-CFLAGS_COMMON = -Wextra
+CFLAGS_COMMON = -Wextra -Wall
 TARGET        = fs
 SRC           = fs.c
 OBJ           = $(SRC:.c=.o)
