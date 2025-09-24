@@ -31,6 +31,7 @@ typedef struct {
     const char *help;
 } OptionDef;
 
+
 // ------------------ Option Handlers ------------------
 void handle_ignore_case(Options *opts, const char *arg) { opts->ignore_case = true; }
 void handle_show_line_numbers(Options *opts, const char *arg) { opts->show_line_numbers = true; }
