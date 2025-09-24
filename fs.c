@@ -15,6 +15,7 @@ typedef struct {
     bool ignore_case;		// -i
     bool show_line_numbers;	// -n
     bool show_filename;		// -f
+    bool filename_title;	// -F
     bool count_only;		// -c
     int before;   			// -bN
     int after;   			// -aN
@@ -37,6 +38,7 @@ typedef struct {
 void handle_ignore_case(Options *opts, const char *arg) {UNUSED(arg); opts->ignore_case = true; }
 void handle_show_line_numbers(Options *opts, const char *arg) {UNUSED(arg); opts->show_line_numbers = true; }
 void handle_show_filename(Options *opts, const char *arg) {UNUSED(arg); opts->show_filename = true; }
+void handle_filename_title(Options *opts, const char *arg) {UNUSED(arg); opts->filename_title = true; }
 void handle_count_only(Options *opts, const char *arg) {UNUSED(arg); opts->count_only = true; }
 
 void handle_before(Options *opts, const char *arg) {
@@ -62,7 +64,8 @@ void handle_limit_line(Options *opts, const char *arg) {
 OptionDef option_table[] = {
     {"-i", handle_ignore_case, "Ignore case when searching"},
     {"-n", handle_show_line_numbers, "Show line numbers"},
-    {"-f", handle_show_filename, "Show file name"},
+    {"-f", handle_show_filename, "Show file basename on each line"},
+    {"-F", handle_filename_title, "Show file name as section title"},
     {"-c", handle_count_only, "Print only a count of matching lines"},
     {"-b", handle_before, "Print N lines before a match (e.g. -b2)"},
     {"-a", handle_after, "Print N lines after a match (e.g. -a3)"},
@@ -207,6 +210,10 @@ void process_file(const char *filename, const Options *opts) {
     int buf_count = 0; // number of valid lines in circular buffer
     int match_count = 0;
 
+	if(opts->filename_title) printf("\n----------------------\n"
+									"File: %s\n"
+									"----------------------\n", filename);
+
     while (fgets(line, sizeof(line), fp)) {
         bool match = line_contains(line, opts->pattern, opts->ignore_case);
 
@@ -219,7 +226,8 @@ void process_file(const char *filename, const Options *opts) {
             for (int i = 0; i < buf_count; i++) {
                 int idx = (start + i) % before_size;
                 if (!opts->count_only && before_buf[idx].line) {
-                	print_line(filename, before_buf[idx].line, before_buf[idx].lineno, opts->line_limit, opts->show_line_numbers, opts->show_filename);
+                	print_line(filename, before_buf[idx].line, before_buf[idx].lineno, 
+                		opts->line_limit, opts->show_line_numbers, opts->show_filename);
                 }
             }
 
@@ -230,7 +238,8 @@ void process_file(const char *filename, const Options *opts) {
         // --- print current line if match or after-counter active ---
         if (match || after_counter > 0) {
             if (!opts->count_only) {
-	            print_line(filename, line, lineno, opts->line_limit, opts->show_line_numbers, opts->show_filename);
+	            print_line(filename, line, lineno, 
+	            	opts->line_limit, opts->show_line_numbers, opts->show_filename);
             }
 
             // decrement after-counter only for non-match lines
@@ -252,7 +261,7 @@ void process_file(const char *filename, const Options *opts) {
 
     // --- print match count if requested ---
     if (opts->count_only) {
-        printf("%s:%d\n", filename, match_count);
+        printf("%s:%d\n", get_basename(filename), match_count);
     }
 
     // --- cleanup ---
