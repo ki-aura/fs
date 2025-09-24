@@ -1,0 +1,15 @@
+# Ignore executable files
+*.exe
+*.out
+*.app
+*.bin
+*.dll
+*.so
+*.dylib
+*.run
+
+# Ignore object files
+*.o
+*.obj
+*.lo
+*.class

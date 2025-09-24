@@ -1,0 +1,155 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <glob.h>
+#include <ctype.h>
+
+// ------------------ Options structure ------------------
+// matchme
+typedef struct {
+    bool ignore_case;
+    bool show_line_numbers;
+    const char *pattern;
+} Options;
+
+// ------------------ Option handler type ------------------
+typedef void (*OptionHandler)(Options *opts);
+
+// Option table entry
+typedef struct {
+    const char *name;
+    OptionHandler handler;
+    const char *help;
+} OptionDef;
+
+// ------------------ Option Handlers ------------------
+void handle_ignore_case(Options *opts) {
+    opts->ignore_case = true;
+}
+
+void handle_show_line_numbers(Options *opts) {
+    opts->show_line_numbers = true;
+}
+
+// ------------------ Option Table ------------------
+OptionDef option_table[] = {
+    {"-i", handle_ignore_case,    "Ignore case when searching"},
+    {"-n", handle_show_line_numbers, "Show line numbers"},
+    {NULL, NULL, NULL} // sentinel
+};
+
+// ------------------ Case-insensitive substring search ------------------
+bool line_contains(const char *line, const char *pattern, bool ignore_case) {
+    if (!ignore_case) {
+        return strstr(line, pattern) != NULL;
+    }
+
+    // scratch buffers
+    static char lower_line[4096];
+    static char lower_pat[1024];  // arbitrary size for pattern
+
+    strncpy(lower_line, line, sizeof(lower_line));
+    lower_line[sizeof(lower_line) - 1] = '\0';
+    strncpy(lower_pat, pattern, sizeof(lower_pat));
+    lower_pat[sizeof(lower_pat) - 1] = '\0';
+
+    for (char *p = lower_line; *p; p++) *p = tolower((unsigned char)*p);
+    for (char *p = lower_pat; *p; p++) *p = tolower((unsigned char)*p);
+
+    return strstr(lower_line, lower_pat) != NULL;
+}
+
+// ------------------ Options Parsing ------------------
+void parse_options(int argc, char *argv[], Options *opts, int *first_file_index) {
+    opts->ignore_case = false;
+    opts->show_line_numbers = false;
+    opts->pattern = NULL;
+
+    int i;
+    for (i = 1; i < argc; i++) {
+        if (argv[i][0] == '-') {
+            bool recognized = false;
+            for (OptionDef *opt = option_table; opt->name; opt++) {
+                if (strcmp(argv[i], opt->name) == 0) {
+                    opt->handler(opts);
+                    recognized = true;
+                    break;
+                }
+            }
+            if (!recognized) {
+                fprintf(stderr, "Unknown option: %s\n", argv[i]);
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            opts->pattern = argv[i]; // first non-option is the pattern
+            i++;
+            break;
+        }
+    }
+
+    if (!opts->pattern) {
+        fprintf(stderr, "Error: no search pattern specified.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    *first_file_index = i;
+    if (*first_file_index >= argc) {
+        fprintf(stderr, "Error: no files specified.\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// ------------------ File Processing ------------------
+void process_file(const char *filename, const Options *opts) {
+    FILE *fp = fopen(filename, "r");
+    if (!fp) {
+        perror(filename);
+        return;
+    }
+
+    char line[4096];
+    int lineno = 1;
+    while (fgets(line, sizeof(line), fp)) {
+        if (line_contains(line, opts->pattern, opts->ignore_case)) {
+            if (opts->show_line_numbers) {
+                printf("%s:%d:%s", filename, lineno, line);
+            } else {
+                printf("%s:%s", filename, line);
+            }
+        }
+        lineno++;
+    }
+
+    fclose(fp);
+}
+
+// ------------------ Main ------------------
+int main(int argc, char *argv[]) {
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s [options] pattern files...\n", argv[0]);
+        fprintf(stderr, "Options:\n");
+        for (OptionDef *opt = option_table; opt->name; opt++) {
+            fprintf(stderr, "  %s\t%s\n", opt->name, opt->help);
+        }
+        return EXIT_FAILURE;
+    }
+
+    Options opts;
+    int first_file_index;
+    parse_options(argc, argv, &opts, &first_file_index);
+
+    for (int i = first_file_index; i < argc; i++) {
+        glob_t globbuf;
+        if (glob(argv[i], 0, NULL, &globbuf) == 0) {
+            for (size_t j = 0; j < globbuf.gl_pathc; j++) {
+                process_file(globbuf.gl_pathv[j], &opts);
+            }
+            globfree(&globbuf);
+        } else {
+            process_file(argv[i], &opts);
+        }
+    }
+
+    return EXIT_SUCCESS;
+}
