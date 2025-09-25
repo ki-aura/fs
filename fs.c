@@ -271,14 +271,16 @@ void process_file(const char *filename, const Options *opts) {
             match_count++;
 
             // print before lines in chronological order
-            int start = (buf_pos + (before_size - buf_count)) % before_size;
-            for (int i = 0; i < buf_count; i++) {
-                int idx = (start + i) % before_size;
-                if (!opts->count_only && before_buf[idx].line) {
-                	print_line(filename, before_buf[idx].line, before_buf[idx].lineno, 
-                		opts->line_limit, opts->line_crop, opts->show_line_numbers, opts->show_filename);
-                }
-            }
+			if (before_size > 0) { // only do this if there's a buffer or the mod can throw a runtime error
+				int start = (buf_pos + (before_size - buf_count)) % before_size;
+				for (int i = 0; i < buf_count; i++) {
+					int idx = (start + i) % before_size;
+					if (!opts->count_only && before_buf[idx].line) {
+						print_line(filename, before_buf[idx].line, before_buf[idx].lineno, 
+							opts->line_limit, opts->line_crop, opts->show_line_numbers, opts->show_filename);
+					}
+				}
+			}
 
             // set after-counter for printing lines after this match
             after_counter = opts->after;

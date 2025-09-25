@@ -8,6 +8,7 @@ endif
 
 # Common flags
 CFLAGS_COMMON = -Wextra -Wall
+CFLAGS_DEBUG = -Wextra -Wall -g -O0
 TARGET        = fs
 SRC           = fs.c
 OBJ           = $(SRC:.c=.o)
@@ -20,6 +21,9 @@ all: release
 # Release build
 release: CFLAGS = $(CFLAGS_COMMON)
 release: $(TARGET)
+
+debug: CFLAGS = $(CFLAGS_DEBUG)
+debug: $(TARGET) 
 
 tidy:
 	xcrun clang-tidy $(SRC) \
