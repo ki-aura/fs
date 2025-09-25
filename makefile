@@ -1,4 +1,4 @@
-# Compiler selection
+# Compiler  selection
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
     CC = clang
