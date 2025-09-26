@@ -10,7 +10,7 @@
 #define MAX_LINE_LEN 4096	// longest line we'll try to display
 #define UNUSED(x) (void)(x)	// tell compiler when we intentionally don't use a variable
 #define TAB_WIDTH 4
-#define FS_VERSION "2.2.0"
+#define FS_VERSION "2.2.1"
 
 // ------------------ Options structure ------------------
 typedef struct {
@@ -398,7 +398,12 @@ CleanUp:
 
 // ------------------ Main ------------------
 int main(int argc, char *argv[]) {
-    if (argc < 3) {	
+	// if we are bring piped from stdin, we expect at least 2 args (fs and pattern), 
+	// otherwise we expect at least a filename so args 3 or more
+	int expected_args;
+	if (isatty(fileno(stdin))) expected_args=3; else expected_args=2;
+
+    if (argc < expected_args) {	
         fprintf(stderr, "Usage: %s [options] pattern files...\n", argv[0]);
         fprintf(stderr, "Options:\n");
         for (OptionDef *opt = option_table; opt->name; opt++) {

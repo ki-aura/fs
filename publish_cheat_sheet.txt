@@ -1,20 +1,20 @@
 From fs Project Folder
 ===================
 git tag --list
-grep -n "2.2.0" *.c
+grep -n "2.2.1" *.c
 git add .
-git commit -m "ready for v2.2.0"
+git commit -m "ready for v2.2.1"
 git push
-git tag -a v2.2.0 -m "Release v2.2.0"
-git push origin v2.2.0
-gh release create v2.2.0 --title "Release v2.2.0" --notes "Release v2.2.0"
+git tag -a v2.2.1 -m "Release v2.2.1"
+git push origin v2.2.1
+gh release create v2.2.1 --title "Release v2.2.1" --notes "Release v2.2.1"
 
 From fs homebrew folder
 =====================
-curl -L -o v2.2.0.tar.gz https://github.com/ki-aura/fs/archive/refs/tags/v2.2.0.tar.gz
-shasum -a 256 v2.2.0.tar.gz
+curl -L -o v2.2.1.tar.gz https://github.com/ki-aura/fs/archive/refs/tags/v2.2.1.tar.gz
+shasum -a 256 v2.2.1.tar.gz
 rm *.gz
 nano Formula/fs.rb
 git add Formula/fs.rb
-git commit -m "ready for v2.2.0"
+git commit -m "ready for v2.2.1"
 git push
