@@ -5,11 +5,12 @@
 #include <glob.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <unistd.h>
 
 #define MAX_LINE_LEN 4096	// longest line we'll try to display
 #define UNUSED(x) (void)(x)	// tell compiler when we intentionally don't use a variable
 #define TAB_WIDTH 4
-#define FS_VERSION "2.1.0"
+#define FS_VERSION "2.2.0"
 
 // ------------------ Options structure ------------------
 typedef struct {
@@ -75,6 +76,7 @@ void handle_limit_crop(Options *opts, const char *arg) {
 
 // ------------------ Option Table ------------------
 OptionDef option_table[] = {
+//   name  handler              help
     {"-i", handle_ignore_case, "Ignore case when searching"},
     {"-r", handle_reverse_find, "Show lines that do NOT match"},
     {"-n", handle_show_line_numbers, "Show line numbers"},
@@ -107,7 +109,7 @@ void parse_options(int argc, char *argv[], Options *opts, int *first_file_index)
                 if (strncmp(argv[i], opt->name, len) == 0) {
                     opt->handler(opts, argv[i]);
                     recognized = true;
-                    break;
+                    break;	
                 }
             }
             if (!recognized) {
@@ -128,10 +130,11 @@ void parse_options(int argc, char *argv[], Options *opts, int *first_file_index)
     }
 
     *first_file_index = i;
-    if (*first_file_index >= argc) {
+    
+/*    if (*first_file_index >= argc){
         fprintf(stderr, "Error: no files specified.\n");
         exit(EXIT_FAILURE);
-    }
+    }*/
 }
 
 // ------------------ Case-insensitive substring search ------------------
@@ -276,10 +279,13 @@ typedef struct {
     char *line;
 } BeforeLine;
 
-void process_file(const char *filename, const Options *opts) {
-    FILE *fp = fopen(filename, "r");
-    if (!fp) { perror(filename); return; }
+void process_file(FILE *fp, const char *filename, const Options *opts) {
+//    FILE *fp = fopen(filename, "r");
+//    if (!fp) { perror(filename); return; }
 
+// +++++++++
+// Handle -b: 1 of 3: create a buffer to capture rolling set of previous lines
+// +++++++++
     int before_size = opts->before;
     BeforeLine *before_buf = NULL;
     if (before_size > 0) {
@@ -317,7 +323,7 @@ void process_file(const char *filename, const Options *opts) {
             match_count++;
 
 // +++++++++
-// Handle -b: 1 of 2: print n lines from before the match; or as many as the buffer has
+// Handle -b: 2 of 3: print n lines from before the match; or as many as the buffer has
 // +++++++++
             // print before lines in chronological order
             // this uses a circular buffer of size specified in the -b option
@@ -357,7 +363,7 @@ void process_file(const char *filename, const Options *opts) {
         }
 
 // +++++++++
-// Handle -b: 2 of 2: push all lines into the buffer (curcular) so historical lines can be printed 
+// Handle -b: 3 of 3: push all lines into the buffer (curcular) so historical lines can be printed 
 // +++++++++
         // --- update circular buffer for "before" lines ---
         if (before_size > 0) {
@@ -386,7 +392,7 @@ CleanUp:
         free(before_buf);
     }
 
-    fclose(fp);
+//    fclose(fp);
 }
 
 
@@ -415,23 +421,46 @@ int main(int argc, char *argv[]) {
 		return EXIT_SUCCESS;
 	}
 
-	// process each command line file or file wildcard
-    for (int i = first_file_index; i < argc; i++) {
-        glob_t globbuf; // holds array of matching files if there's a wildcard
-        // glob will return = 0 if there's a wildcard that actually matches files
-        // it will return non-0 if there's a single file (no wildcard) or the wildcard doesn't match any files
-        if (glob(argv[i], 0, NULL, &globbuf) == 0) {
-        	// so we only get here if there's a wildcard (file?.c or *.h etc) and this actually matches files
-        	// if so, process them and then free the glob array
-            for (size_t j = 0; j < globbuf.gl_pathc; j++) {
-                process_file(globbuf.gl_pathv[j], &opts);
-            }
-            globfree(&globbuf);
-        } else {
-        	// we only get here if the file was not a wildcard, or was a wildcard that didn't match 
-        	// any files. either way, the process_file func will simply reject what it can't find 
-            process_file(argv[i], &opts);
-        }
+    if (first_file_index >= argc) {
+        // No files specified on the command line; check if stdin has been used to pipe data in
+		if (isatty(fileno(stdin))) {
+			// stdin is a terminal → no pipe or redirection
+			fprintf(stderr, "Error: no input provided via pipe or file.\n");
+			return EXIT_FAILURE;
+		}
+		// we're good - stdin has something to check
+        process_file(stdin, "<stdin>", &opts);
+    } else {
+		// process each command line file or file wildcard
+		for (int i = first_file_index; i < argc; i++) {
+			glob_t globbuf; // holds array of matching files if there's a wildcard
+			// glob will return = 0 if there's a wildcard that actually matches files
+			// it will return non-0 if there's a single file (no wildcard) or the wildcard doesn't match any files
+			if (glob(argv[i], 0, NULL, &globbuf) == 0) {
+				// so we only get here if there's a wildcard (file?.c or *.h etc) and this actually matches files
+				// if so, process them and then free the glob array
+				for (size_t j = 0; j < globbuf.gl_pathc; j++) {
+					FILE *fp = fopen(globbuf.gl_pathv[j], "r");
+					if (!fp) {
+						perror(globbuf.gl_pathv[j]);
+						continue;   // print error but continue
+					}
+					process_file(fp, globbuf.gl_pathv[j], &opts);
+					fclose(fp);
+				}
+				globfree(&globbuf);
+			} else {
+				// we only get here if the file was not a wildcard, or was a wildcard that didn't match 
+				// any files. either way, the process_file func will simply reject what it can't find 
+				FILE *fp = fopen(argv[i], "r");
+				if (!fp) {
+					perror(argv[i]);
+					continue;   // print error but continue
+				}
+				process_file(fp, argv[i], &opts);
+				fclose(fp);
+			}
+		}
     }
 
     return EXIT_SUCCESS;
