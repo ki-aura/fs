@@ -11,7 +11,7 @@
 #define MAX_LINE_LEN 4096	// longest line we'll try to display
 #define UNUSED(x) (void)(x)	// tell compiler when we intentionally don't use a variable
 #define TAB_WIDTH 4
-#define FS_VERSION "2.3"
+#define FS_VERSION "2.3.1"
 
 // ------------------ Options structure ------------------
 typedef struct {
@@ -151,7 +151,7 @@ bool line_contains(const char *line, const Options *opts, const regex_t *regex) 
     bool matched = false;
 
 // +++++++++++
-// Handle -E: use regex
+// Handle -E: 2of2: use regex
 // +++++++++++
     if (opts->use_regex) {
         // Use regex
@@ -159,7 +159,7 @@ bool line_contains(const char *line, const Options *opts, const regex_t *regex) 
     } else if (opts->ignore_case) {
 
 // +++++++++++
-// Handle -i: 2 of 2 convert line to lower case. pattern will already be correct (see 1of2)
+// Handle -i: 3of3: convert line to lower case. pattern will already be correct (see 1of2)
 // +++++++++++
         char lower_line[MAX_LINE_LEN];
         strncpy(lower_line, line, sizeof(lower_line)-1);
@@ -283,7 +283,7 @@ typedef struct {
 
 void process_file(FILE *fp, const char *filename, const Options *opts, regex_t *regex) {
 // +++++++++++
-// Handle -b: 1 of 3: create a buffer to capture rolling set of previous lines
+// Handle -b: 1of3: create a buffer to capture rolling set of previous lines
 // +++++++++++
     int before_size = opts->before;
     BeforeLine *before_buf = NULL;
@@ -310,20 +310,20 @@ void process_file(FILE *fp, const char *filename, const Options *opts, regex_t *
         // --- handle match ---
         if (match) {
 // +++++++++++
-// Handle -m: 2 of 2: ONLY show file names where there are matches (not the matched lines). 
+// Handle -m: 2of2: ONLY show file names where there are matches (not the matched lines). 
 // +++++++++++
 			if(opts->filename_only) {
 				printf("Match Found In: %s\n", filename);
-				return; // this is safe as -m turns off -b (no buffer cleanup needed) see 1 of 2
+				return; // this is safe as -m turns off -b (no buffer cleanup needed) see 1of2
 				}
 
 			// without the -m option we process every line
             match_count++;
 
 // +++++++++++
-// Handle -c: 1 of 3: don't print before lines if match count requested
+// Handle -c: 1of3: don't print before lines if match count requested
 // +++++++++++
-// Handle -b: 2 of 3: print n lines from before the match; or as many as the buffer has
+// Handle -b: 2of3: print n lines from before the match; or as many as the buffer has
 // +++++++++++
             // print before lines in chronological order
             // this uses a circular buffer of size specified in the -b option
@@ -340,16 +340,16 @@ void process_file(FILE *fp, const char *filename, const Options *opts, regex_t *
 			}
 
 // +++++++++++
-// Handle -a: 1 of 2: set point from which we print n lines after the match; or as many as there are left in the file
+// Handle -a: 1of2: set point from which we print n lines after the match; or as many as there are left in the file
 // +++++++++++
             // set after-counter for printing lines after this match
             after_counter = opts->after;
         }
 
 // +++++++++++
-// Handle -c: 2 of 3: don't print after lines if match count requested
+// Handle -c: 2of3: don't print after lines if match count requested
 // +++++++++++
-// Handle -a: 2 of 2: continue to print lines after the match until the counter runs down
+// Handle -a: 2of2: continue to print lines after the match until the counter runs down
 // +++++++++++
         // --- print current line if match OR after-counter active ---
         if ((match || after_counter > 0) && !opts->count_only){
@@ -364,7 +364,7 @@ void process_file(FILE *fp, const char *filename, const Options *opts, regex_t *
         }
 
 // +++++++++++
-// Handle -b: 3 of 3: push each line into the buffer (curcular) so historical lines can be printed 
+// Handle -b: 3of3: push each line into the buffer (curcular) so historical lines can be printed 
 // +++++++++++
         // --- update circular buffer for "before" lines ---
         if (before_size > 0) {
@@ -379,7 +379,7 @@ void process_file(FILE *fp, const char *filename, const Options *opts, regex_t *
     }
 
 // +++++++++++
-// Handle -c: 3 of 3: print match count if requested
+// Handle -c: 3of3: print match count if requested
 // +++++++++++
     if (opts->count_only) {
         printf("%s:%d\n", get_basename(filename), match_count);
@@ -444,7 +444,7 @@ int main(int argc, char *argv[]) {
     }
 
 // +++++++++++
-// Handle -i: 1 of 2: make the pattern lower case (unless regex specified)
+// Handle -i: 1of3: make the pattern lower case (unless regex specified)
 // +++++++++++
 if (opts.ignore_case && !opts.use_regex) {
     for (char *p = opts.pattern; *p; p++) {
@@ -453,7 +453,9 @@ if (opts.ignore_case && !opts.use_regex) {
 }
 
 // +++++++++++
-// Handle -E: 1 of 2: compile regex 
+// Handle -E: 1of2: compile regex 
+// +++++++++++
+// Handle -i: 2of3: specify REG_ICASE if -i
 // +++++++++++
 if (opts.use_regex) {
     int flags = REG_NOSUB;  // we don’t need match offsets
@@ -470,7 +472,7 @@ if (opts.use_regex) {
 }
 
 // +++++++++++
-// Handle -m: 1 of 2: turn off the -b option so that we don't do unnecessary buffer allocations. 
+// Handle -m: 1of2: turn off the -b option so that we don't do unnecessary buffer allocations. 
 // +++++++++++
 if (opts.filename_only) opts.before = 0;
 
