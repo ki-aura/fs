@@ -138,10 +138,10 @@ void parse_options(int argc, char *argv[], Options *opts, int *first_file_index)
     }
 	
 	// we're only ok to not have a pattern if either the -v or -h options are set
-    if (!opts->pattern && !opts->show_help && !opts->show_version) {
-        fprintf(stderr, "Error: no search pattern specified.\n");
-        exit(EXIT_FAILURE);
-    }
+	// if so, manually set -h and show the help
+    if (!opts->pattern && !opts->show_version) 
+        opts->show_help = true;
+    
 	// the next thing after the pattern is the list of files
     *first_file_index = i;
 }
