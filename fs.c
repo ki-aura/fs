@@ -32,6 +32,26 @@ typedef struct {
     char *pattern;			// will come from argv[]
 } Options;
 
+// ------------------Memory safe allocation helpers ----------
+static void *xmalloc(size_t size) {
+    void *ptr = malloc(size);
+    if (ptr == NULL) {
+        fprintf(stderr, "Fatal: Out of memory.\n");
+        exit(EXIT_FAILURE);
+    }
+    return ptr;
+}
+
+static void *xcalloc(size_t count, size_t size) {
+    void *ptr = calloc(count, size);
+    if (ptr == NULL) {
+        fprintf(stderr, "Fatal: Out of memory.\n");
+        exit(EXIT_FAILURE);
+    }
+    return ptr;
+}
+
+
 // ------------------ Option handler type ------------------
 // Define an array of pointers to handler functions
 // each handler function takes the pointer to the option's storage (above) and the command line argument
@@ -99,8 +119,9 @@ OptionDef option_table[] = {
     {"-L", handle_line_crop, "Crop the first n chars of each line (e.g. -L5)"},
     {NULL, NULL, NULL} // sentinel 
 };
-
+// -----------------------------------------------------
 // ------------------ Options Parsing ------------------
+// -----------------------------------------------------
 void parse_options(int argc, char *argv[], Options *opts, int *first_file_index) {
     // zero-initialise all fields in options
     *opts = (Options){0};  
@@ -128,7 +149,7 @@ void parse_options(int argc, char *argv[], Options *opts, int *first_file_index)
         	// we've reached the first command line arg that doesn't start with a '-' this is the pattern
         	// we'll take a copy as we may want to modify it if the -i option has been set
         	// we'll free it before we close
-        	char *pattern_copy = malloc(MAX_LINE_LEN);
+        	char *pattern_copy = xmalloc(MAX_LINE_LEN);
 			strncpy(pattern_copy, argv[i], MAX_LINE_LEN-1);
 			pattern_copy[MAX_LINE_LEN-1] = '\0';
 			opts->pattern = pattern_copy;
@@ -146,7 +167,9 @@ void parse_options(int argc, char *argv[], Options *opts, int *first_file_index)
     *first_file_index = i;
 }
 
+// -----------------------------------------------------
 // ------------------ Case-insensitive substring search ------------------
+// -----------------------------------------------------
 bool line_contains(const char *line, const Options *opts, const regex_t *regex) {
     bool matched = false;
 
@@ -195,7 +218,9 @@ void append_to_buffer(char *buf, size_t bufsize, const char *fmt, ...) {
     UNUSED(n);
 }
 
+// -----------------------------------------------------
 // ------------------ Helper for stripping filename ---------
+// -----------------------------------------------------
 const char *get_basename(const char *path){
     if (path == NULL) return NULL;
 
@@ -204,7 +229,9 @@ const char *get_basename(const char *path){
     return path;    	      	// no slash, whole string is filename
 }
 
+// -----------------------------------------------------
 // ------------------ Helper for Line Printing ---------
+// -----------------------------------------------------
 void print_line(const char *filename, const char *line, int lineno,
                 int max_chars, int crop_chars, bool show_line_nums, bool show_fname)
 {
@@ -274,7 +301,9 @@ void print_line(const char *filename, const char *line, int lineno,
 }
 
 
+// -----------------------------------------------------
 // ------------------ File Processing ------------------
+// -----------------------------------------------------
 // we'll use this structure to store previous lines for the -b option
 typedef struct {
     int lineno;
@@ -288,7 +317,7 @@ void process_file(FILE *fp, const char *filename, const Options *opts, regex_t *
     int before_size = opts->before;
     BeforeLine *before_buf = NULL;
     if (before_size > 0) {
-        before_buf = calloc(before_size, sizeof(BeforeLine));
+        before_buf = xcalloc(before_size, sizeof(BeforeLine));
     }
 
     char line[MAX_LINE_LEN];
@@ -393,7 +422,9 @@ void process_file(FILE *fp, const char *filename, const Options *opts, regex_t *
     }
 }
 
+// -----------------------------------------------------
 // ------------------ show help ------------------
+// -----------------------------------------------------
 void show_help(void){
 	fprintf(stderr, "Usage: fs [options] pattern files...\n");
 	fprintf(stderr, "Options:\n");
@@ -403,7 +434,9 @@ void show_help(void){
 }
 
 
+// -----------------------------------------------------
 // ------------------ Main ------------------
+// -----------------------------------------------------
 int main(int argc, char *argv[]) {
     Options opts; // this is our full options list if values
     int first_file_index;	
