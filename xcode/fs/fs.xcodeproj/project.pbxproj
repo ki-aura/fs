@@ -27,14 +27,6 @@
 		C9B3D03B2E84B6E8006F415E /* fs.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = fs.c; path = /Users/matt/Projects/fs/fs.c; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		C9B3D0312E84B5FA006F415E /* fs */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = fs;
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
-
 /* Begin PBXFrameworksBuildPhase section */
 		C9B3D02C2E84B5FA006F415E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -50,7 +42,6 @@
 			isa = PBXGroup;
 			children = (
 				C9B3D03B2E84B6E8006F415E /* fs.c */,
-				C9B3D0312E84B5FA006F415E /* fs */,
 				C9B3D0302E84B5FA006F415E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -77,9 +68,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				C9B3D0312E84B5FA006F415E /* fs */,
 			);
 			name = fs;
 			packageProductDependencies = (
