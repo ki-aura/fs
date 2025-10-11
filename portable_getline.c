@@ -61,7 +61,7 @@ void *xrealloc(void *ptr, size_t size) {
  */
 ssize_t get_line(char **lineptr, size_t *n, FILE *stream) {
     // We must use a separate variable for the block size, as *n is the capacity.
-    static const size_t BLOCK_SIZE = 256; // adjust to a reasonable size for the job 
+    static const size_t BLOCK_SIZE = 3; // adjust to a reasonable size for the job 
     size_t total_read = 0; 
 
     // 1. Initialize buffer if it's the first call or buffer is too small

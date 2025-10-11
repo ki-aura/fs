@@ -27,12 +27,12 @@ debug: $(TARGET)
 
 tidy:
 	xcrun clang-tidy $(SRC) \
-		-checks='clang-diagnostic-*,clang-analyzer-*,misc-*,-misc-include-cleaner' \
+		-checks='clang-diagnostic-*,clang-analyzer-*,misc-*,-misc-include-cleaner -misc-unused-includes' \
 		-- -Wall -Wextra
 
 bigtidy:
 	xcrun clang-tidy $(SRC) \
-		-checks='clang-diagnostic-*,clang-analyzer-*,misc-*,-misc-include-cleaner' \
+		-checks='clang-diagnostic-*,clang-analyzer-*,misc-*' \
 		-- -Wall -Wextra -Wshadow -Wconversion -Wsign-conversion -Wcast-qual -Wpedantic
 
 maxtidy:

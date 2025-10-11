@@ -10,12 +10,30 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <regex.h>
-#include <getopt.h>  // POSIX getopt
 
 #define MAX_LINE_LEN 8192	// longest line we'll try to display or search
 #define UNUSED(x) (void)(x)	// tell compiler when we intentionally don't use a variable
 #define TAB_WIDTH 4
-#define FS_VERSION "2.5.0"
+#define FS_VERSION "2.4.0"
+
+// ------------------ Options structure ------------------
+typedef struct {
+    bool ignore_case;		// -i
+    bool reverse_find;		// -r
+    bool use_regex;			// -E
+    bool show_line_numbers;	// -n
+    bool show_filename;		// -f
+    bool filename_title;	// -F
+    bool filename_only;		// -m
+    bool count_only;		// -c
+    bool show_version;		// -v
+    bool show_help;			// -h
+    int before;   			// -bN
+    int after;   			// -aN
+    int line_limit; 		// -lN
+    int line_crop; 			// -LN
+    char *pattern;			// will come from argv[]
+} Options;
 
 // ------------------Memory safe allocation helpers ----------
 void *xmalloc(size_t size) {
@@ -47,138 +65,120 @@ void *xrealloc(void *ptr, size_t size) {
     return new_ptr;
 }
 
+// ------------------ Option handler type ------------------
+// Define an array of pointers to handler functions
+// each handler function takes the pointer to the option's storage (above) and the command line argument
+typedef void (*OptionHandler)(Options *opts, const char *arg);
+
+// Option table entry
+typedef struct {
+    const char *name;
+    OptionHandler handler;
+    const char *help;
+} OptionDef;
+
+// ------------------ Option Handlers ------------------
+void handle_ignore_case(Options *opts, const char *arg) {UNUSED(arg); opts->ignore_case = true; }
+void handle_reverse_find(Options *opts, const char *arg) {UNUSED(arg); opts->reverse_find = true; }
+void handle_use_regex(Options *opts, const char *arg) {UNUSED(arg); opts->use_regex = true; }
+void handle_show_line_numbers(Options *opts, const char *arg) {UNUSED(arg); opts->show_line_numbers = true; }
+void handle_show_filename(Options *opts, const char *arg) {UNUSED(arg); opts->show_filename = true; }
+void handle_filename_title(Options *opts, const char *arg) {UNUSED(arg); opts->filename_title = true; }
+void handle_filename_only(Options *opts, const char *arg) {UNUSED(arg); opts->filename_only = true; }
+void handle_count_only(Options *opts, const char *arg) {UNUSED(arg); opts->count_only = true; }
+void handle_show_version(Options *opts, const char *arg) {UNUSED(arg); opts->show_version = true; }
+void handle_show_help(Options *opts, const char *arg) {UNUSED(arg); opts->show_help = true; }
+
+void handle_before(Options *opts, const char *arg) {
+    int n = atoi(arg + 2);  // parse "-bN"
+    if (n < 0) n = 0;
+    if (n > 50) n = 50; // upper limit -b as we manage a buffer for it
+    opts->before = n;
+}
+void handle_after(Options *opts, const char *arg) {
+    int n = atoi(arg + 2);  // parse "-aN"
+    if (n < 0) n = 0;		// no upper limit as processing for -a is free
+    opts->after = n;
+}
+void handle_line_limit(Options *opts, const char *arg) {
+    int n = atoi(arg + 2);  // parse "-lN"
+    if (n < 0) n = 0;
+    if (n >= MAX_LINE_LEN) n = MAX_LINE_LEN -1;
+    opts->line_limit = n;
+}
+void handle_line_crop(Options *opts, const char *arg) {
+    int n = atoi(arg + 2);  // parse "-LN"
+    if (n < 0) n = 0;
+    if (n >= MAX_LINE_LEN) n = MAX_LINE_LEN -1;
+    opts->line_crop = n;
+}
+
+// ------------------ Option Table ------------------
+OptionDef option_table[] = {
+//   name  handler              help
+    {"-i", handle_ignore_case, "Ignore case when searching (default is case sensitive)"},
+    {"-r", handle_reverse_find, "Show lines that do NOT match search pattern"},
+    {"-E", handle_use_regex, "Treat the pattern as a POSIX regex"},
+    {"-n", handle_show_line_numbers, "Show line numbers"},
+    {"-f", handle_show_filename, "Show file basename on each line"},
+    {"-F", handle_filename_title, "Show file name as section title"},
+    {"-m", handle_filename_only, "Show only file names that contain a match"},
+    {"-c", handle_count_only, "Show only a count of matching lines"},
+    {"-v", handle_show_version, "Display fs version information"},
+    {"-h", handle_show_help, "Display this help message"},
+    {"-b", handle_before, "Print N lines before a match (e.g. -b2) maximum 50 lines"},
+    {"-a", handle_after, "Print N lines after a match (e.g. -a3) no maximum"},
+    {"-l", handle_line_limit, "Print only the first n chars of each line (e.g. -l20)"},
+    {"-L", handle_line_crop, "Crop the first n chars of each line (e.g. -L5)"},
+    {NULL, NULL, NULL} // sentinel 
+};
 // -----------------------------------------------------
 // ------------------ Options Parsing ------------------
 // -----------------------------------------------------
-
-// Help table entry
-typedef struct {
-    const char *name;
-    const char *help;
-} HelpDef;
-
-// ------------------ Help Table ------------------
-HelpDef help_table[] = {
-//   name  handler              help
-	{"-i",   "Ignore case when searching (default is case sensitive)"},
-    {"-r",   "Show lines that do NOT match search pattern"},
-    {"-E",   "Treat the pattern as a POSIX regex"},
-    {"-n",   "Show line numbers"},
-    {"-f",   "Show file basename on each line"},
-    {"-F",   "Show file name as section title"},
-    {"-m",   "Show only file names that contain a match"},
-    {"-c",   "Show only a count of matching lines"},
-    {"-v",   "Display fs version information"},
-    {"-h",   "Display this help message"},
-    {"-b N", "Print N lines before a match (e.g. -b2) maximum 50 lines"},
-    {"-a N", "Print N lines after a match (e.g. -a3) no maximum"},
-    {"-l N", "Print only the first n chars of each line (e.g. -l20)"},
-    {"-L N", "Crop the first n chars of each line (e.g. -L5)"},
-    {NULL, NULL} // sentinel
-};
-
-const char option_list[] = "irEnfFmcvhb:a:l:L:";
-
-// ------------------ Options structure ------------------
-typedef struct {
-    bool ignore_case;		// -i
-    bool reverse_find;		// -r
-    bool use_regex;			// -E
-    bool show_line_numbers;	// -n
-    bool show_filename;		// -f
-    bool filename_title;	// -F
-    bool filename_only;		// -m
-    bool count_only;		// -c
-    bool show_version;		// -v
-    bool show_help;			// -h
-    int before;   			// -bN
-    int after;   			// -aN
-    int line_limit; 		// -lN
-    int line_crop; 			// -LN
-    char *pattern;			// will come from argv[]
-} Options;
-
-// ----------------------- parsing function ---------------
 void parse_options(int argc, char *argv[], Options *opts, int *first_file_index) {
-    *opts = (Options){0};
-    opts->line_limit = MAX_LINE_LEN - 1;
+    // zero-initialise all fields in options
+    *opts = (Options){0};  
+    // modify any non-zero defaults (e.g. -l defaults to full line, not 0)
+    opts->line_limit = MAX_LINE_LEN-1;
 
-    int opt;
-    while ((opt = getopt(argc, argv, option_list)) != -1) {
-        switch (opt) {
-            case 'i': opts->ignore_case = true; break;
-            case 'r': opts->reverse_find = true; break;
-            case 'E': opts->use_regex = true; break;
-            case 'n': opts->show_line_numbers = true; break;
-            case 'f': opts->show_filename = true; break;
-            case 'F': opts->filename_title = true; break;
-            case 'm': opts->filename_only = true; break;
-            case 'c': opts->count_only = true; break;
-            case 'v': opts->show_version = true; break;
-            case 'h': opts->show_help = true; break;
-
-            case 'b': {
-                int n = atoi(optarg);
-                if (n < 0) n = 0;
-                if (n > 50) n = 50;
-                opts->before = n;
-                break;
+    int i; // start from 1 as argv[0] is the name of the executable
+    for (i = 1; i < argc; i++) {
+        if (argv[i][0] == '-') {
+            bool recognized = false;
+            for (OptionDef *opt = option_table; opt->name; opt++) { // runs until hits sentinel
+                size_t len = strlen(opt->name);
+                // if we find a match to our option list, call the handler function
+                if (strncmp(argv[i], opt->name, len) == 0) {
+                    opt->handler(opts, argv[i]);
+                    recognized = true;
+                    break;	
+                }
             }
-            case 'a': {
-                int n = atoi(optarg);
-                if (n < 0) n = 0;
-                opts->after = n;
-                break;
-            }
-            case 'l': {
-                int n = atoi(optarg);
-                if (n < 0) n = 0;
-                if (n >= MAX_LINE_LEN) n = MAX_LINE_LEN - 1;
-                opts->line_limit = n;
-                break;
-            }
-            case 'L': {
-                int n = atoi(optarg);
-                if (n < 0) n = 0;
-                if (n >= MAX_LINE_LEN) n = MAX_LINE_LEN - 1;
-                opts->line_crop = n;
-                break;
-            }
-
-            default:
-                fprintf(stderr, "Unknown option: -%c\n", optopt);
+            if (!recognized) {
+                fprintf(stderr, "Unknown option: %s\n", argv[i]);
                 exit(EXIT_FAILURE);
+            }
+        } else {
+        	// we've reached the first command line arg that doesn't start with a '-' this is the pattern
+        	// we'll take a copy as we may want to modify it if the -i option has been set
+        	// we'll free it before we close
+        	char *pattern_copy = xmalloc(MAX_LINE_LEN);
+			strncpy(pattern_copy, argv[i], MAX_LINE_LEN-1);
+			pattern_copy[MAX_LINE_LEN-1] = '\0';
+			opts->pattern = pattern_copy;
+            i++;
+            break;
         }
     }
-
-    // After getopt() finishes, optind points to the first non-option argument.
-    if (optind < argc) {
-        char *pattern_copy = xmalloc(MAX_LINE_LEN);
-        strncpy(pattern_copy, argv[optind], MAX_LINE_LEN - 1);
-        pattern_copy[MAX_LINE_LEN - 1] = '\0';
-        opts->pattern = pattern_copy;
-        optind++;
-    }
-
-    // If no pattern was given, enable help unless -v was specified.
-    if (!opts->pattern && !opts->show_version)
+	
+	// we're only ok to not have a pattern if either the -v or -h options are set
+	// if so, manually set -h and show the help
+    if (!opts->pattern && !opts->show_version) 
         opts->show_help = true;
-
-    *first_file_index = optind;
+    
+	// the next thing after the pattern is the list of files
+    *first_file_index = i;
 }
-
-// ------------------ show help ------------------
-// +++++++++++
-// Handle -h: show help table
-// +++++++++++
-void show_help(void){
-	fprintf(stderr, "Usage: fs [options] pattern files...\n");
-	fprintf(stderr, "Options:\n");
-	for (HelpDef *opt = help_table; opt->name; opt++) {
-		fprintf(stderr, "  %s\t%s\n", opt->name, opt->help);
-	}
-}
-
 
 // -----------------------------------------------------
 // ------------------ Case-insensitive substring search ------------------
@@ -318,6 +318,78 @@ void print_line(const char *filename, const char *line, int lineno,
 // ------------------ File Processing ------------------
 // -----------------------------------------------------
 
+
+// Portable get_line Function
+/**
+ * Reads an entire line from a stream, replicates POSIX getline().
+ * lineptr: A pointer to a char* buffer pointer. The buffer is resized or allocated as necessary.
+ * n:       A pointer to a size_t holding the current buffer capacity.
+ * stream:  The FILE stream to read from.
+ * return:  The number of characters read (including the newline character, if present),
+ * 			or -1 on failure (including EOF).
+ *
+ * NOTES: 	The buffer pointed to by *lineptr is always null-terminated.
+ * 			The buffer *lineptr must be freed by the calling function.
+ */
+ssize_t get_line(char **lineptr, size_t *n, FILE *stream) {
+    // We must use a separate variable for the block size, as *n is the capacity.
+    static const size_t BLOCK_SIZE = 256; // adjust to a reasonable size for the job 
+    size_t total_read = 0; 
+
+    // 1. Initialize buffer if it's the first call or buffer is too small
+    if (*lineptr == NULL || *n < BLOCK_SIZE) {
+        *n = BLOCK_SIZE;
+        *lineptr = xrealloc(*lineptr, *n);
+    }
+
+    while (1) {
+        // Calculate remaining space in the current buffer
+        size_t remaining = *n - total_read;
+        
+        // 2. Read a block of data using fgets
+        // Reads up to (remaining - 1) chars and ensures null termination.
+        // We start writing from the current end of the data: *lineptr + total_read
+        char *result = fgets(*lineptr + total_read, (int)remaining, stream);
+
+        if (result == NULL) {
+            // Read failed (EOF or error)
+            if (total_read == 0) {
+                return -1; // Nothing was read
+            }
+            // Something was read before EOF/error, so the line ends here.
+            break; 
+        }
+
+        // 3. Update the count of characters read
+        // The length of the new block is strlen(buffer_start_of_new_data)
+        size_t new_len = strlen(*lineptr + total_read);
+        total_read += new_len;
+
+        // 4. Check for Newline Character
+        if (total_read > 0 && (*lineptr)[total_read - 1] == '\n') {
+            break; // Line is complete
+        }
+        
+        // 5. Check if the block was filled without a newline
+        // If the number of characters read is exactly (remaining - 1),
+        // it means fgets filled the block and no newline was found.
+        if (new_len == remaining - 1) { 
+            // The buffer is full. Must resize.
+            *n += BLOCK_SIZE;
+            *lineptr = xrealloc(*lineptr, *n);
+            
+            // total_read is already correct. Continue to next iteration 
+            // to fill the newly available space.
+        } else {
+             // Block was NOT full, but no newline was found (must have hit EOF/error
+             // which was caught by result == NULL, or a short read for some reason).
+             // Since we already handled result == NULL, we can break safely here.
+             break;
+        }
+    }
+    return (ssize_t)total_read;
+}
+
 // we'll use this structure to store previous lines for the -b option
 typedef struct {
     int lineno;
@@ -348,7 +420,7 @@ void process_file(FILE *fp, const char *filename, const Options *opts, const reg
 	if(opts->filename_title) printf(
 		"\n----------------------\nFile: %s\n----------------------\n", filename);
 
-    while (getline(&line, &line_len, fp) != -1) {
+    while (get_line(&line, &line_len, fp) != -1) {
         bool match = line_contains(line, opts, regex);
 
         // --- handle match ---
@@ -436,6 +508,17 @@ void process_file(FILE *fp, const char *filename, const Options *opts, const reg
             free(before_buf[j].line);
         free(before_buf);
     }
+}
+
+// -----------------------------------------------------
+// ------------------ show help ------------------
+// -----------------------------------------------------
+void show_help(void){
+	fprintf(stderr, "Usage: fs [options] pattern files...\n");
+	fprintf(stderr, "Options:\n");
+	for (OptionDef *opt = option_table; opt->name; opt++) {
+		fprintf(stderr, "  %s\t%s\n", opt->name, opt->help);
+	}
 }
 
 

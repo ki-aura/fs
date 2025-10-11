@@ -318,6 +318,78 @@ void print_line(const char *filename, const char *line, int lineno,
 // ------------------ File Processing ------------------
 // -----------------------------------------------------
 
+
+// Portable get_line Function
+/**
+ * Reads an entire line from a stream, replicates POSIX getline().
+ * lineptr: A pointer to a char* buffer pointer. The buffer is resized or allocated as necessary.
+ * n:       A pointer to a size_t holding the current buffer capacity.
+ * stream:  The FILE stream to read from.
+ * return:  The number of characters read (including the newline character, if present),
+ * 			or -1 on failure (including EOF).
+ *
+ * NOTES: 	The buffer pointed to by *lineptr is always null-terminated.
+ * 			The buffer *lineptr must be freed by the calling function.
+ */
+ssize_t get_line(char **lineptr, size_t *n, FILE *stream) {
+    // We must use a separate variable for the block size, as *n is the capacity.
+    static const size_t BLOCK_SIZE = 256; // adjust to a reasonable size for the job 
+    size_t total_read = 0; 
+
+    // 1. Initialize buffer if it's the first call or buffer is too small
+    if (*lineptr == NULL || *n < BLOCK_SIZE) {
+        *n = BLOCK_SIZE;
+        *lineptr = xrealloc(*lineptr, *n);
+    }
+
+    while (1) {
+        // Calculate remaining space in the current buffer
+        size_t remaining = *n - total_read;
+        
+        // 2. Read a block of data using fgets
+        // Reads up to (remaining - 1) chars and ensures null termination.
+        // We start writing from the current end of the data: *lineptr + total_read
+        char *result = fgets(*lineptr + total_read, (int)remaining, stream);
+
+        if (result == NULL) {
+            // Read failed (EOF or error)
+            if (total_read == 0) {
+                return -1; // Nothing was read
+            }
+            // Something was read before EOF/error, so the line ends here.
+            break; 
+        }
+
+        // 3. Update the count of characters read
+        // The length of the new block is strlen(buffer_start_of_new_data)
+        size_t new_len = strlen(*lineptr + total_read);
+        total_read += new_len;
+
+        // 4. Check for Newline Character
+        if (total_read > 0 && (*lineptr)[total_read - 1] == '\n') {
+            break; // Line is complete
+        }
+        
+        // 5. Check if the block was filled without a newline
+        // If the number of characters read is exactly (remaining - 1),
+        // it means fgets filled the block and no newline was found.
+        if (new_len == remaining - 1) { 
+            // The buffer is full. Must resize.
+            *n += BLOCK_SIZE;
+            *lineptr = xrealloc(*lineptr, *n);
+            
+            // total_read is already correct. Continue to next iteration 
+            // to fill the newly available space.
+        } else {
+             // Block was NOT full, but no newline was found (must have hit EOF/error
+             // which was caught by result == NULL, or a short read for some reason).
+             // Since we already handled result == NULL, we can break safely here.
+             break;
+        }
+    }
+    return (ssize_t)total_read;
+}
+
 // we'll use this structure to store previous lines for the -b option
 typedef struct {
     int lineno;
@@ -348,7 +420,7 @@ void process_file(FILE *fp, const char *filename, const Options *opts, const reg
 	if(opts->filename_title) printf(
 		"\n----------------------\nFile: %s\n----------------------\n", filename);
 
-    while (getline(&line, &line_len, fp) != -1) {
+    while (get_line(&line, &line_len, fp) != -1) {
         bool match = line_contains(line, opts, regex);
 
         // --- handle match ---
