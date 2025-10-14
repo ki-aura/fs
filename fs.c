@@ -456,7 +456,7 @@ int main(int argc, char *argv[]) {
 // Handle -v: show version
 // +++++++++++
 	if (opts.show_version){
-		printf("fs version v%s\n", FS_VERSION);
+		printf("ki-uara fs version: v%s\n", FS_VERSION);
 		return EXIT_SUCCESS;
 	}
 
