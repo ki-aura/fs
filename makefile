@@ -9,8 +9,8 @@ endif
 # Common flags
 CFLAGS_COMMON = -Wextra -Wall
 CFLAGS_DEBUG = -Wextra -Wall -g -O0
-TARGET        = fs
-SRC           = fs.c
+TARGET        = ggrep
+SRC           = ggrep.c
 OBJ           = $(SRC:.c=.o)
 
 .PHONY: all clean release tidy

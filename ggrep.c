@@ -15,7 +15,7 @@
 #define MAX_LINE_LEN 8192	// longest line we'll try to display or search
 #define UNUSED(x) (void)(x)	// tell compiler when we intentionally don't use a variable
 #define TAB_WIDTH 4
-#define FS_VERSION "2.5.0"
+#define GGREP_VERSION "2.6.0"
 
 // ------------------Memory safe allocation helpers ----------
 void *xmalloc(size_t size) {
@@ -68,7 +68,7 @@ HelpDef help_table[] = {
     {"-F",   "Show file name as section title"},
     {"-m",   "Show only file names that contain a match"},
     {"-c",   "Show only a count of matching lines"},
-    {"-v",   "Display fs version information"},
+    {"-v",   "Display ggrep version information"},
     {"-h",   "Display this help message"},
     {"-b N", "Print N lines before a match (e.g. -b2) maximum 50 lines"},
     {"-a N", "Print N lines after a match (e.g. -a3) no maximum"},
@@ -172,7 +172,7 @@ void parse_options(int argc, char *argv[], Options *opts, int *first_file_index)
 // Handle -h: show help table
 // +++++++++++
 void show_help(void){
-	fprintf(stderr, "Usage: fs [options] pattern files...\n");
+	fprintf(stderr, "Usage: ggrep [options] pattern files...\n");
 	fprintf(stderr, "Options:\n");
 	for (HelpDef *opt = help_table; opt->name; opt++) {
 		fprintf(stderr, "  %s\t%s\n", opt->name, opt->help);
@@ -456,7 +456,7 @@ int main(int argc, char *argv[]) {
 // Handle -v: show version
 // +++++++++++
 	if (opts.show_version){
-		printf("ki-uara fs version: v%s\n", FS_VERSION);
+		printf("GGrep version: ki_aura v%s\n", GGREP_VERSION);
 		return EXIT_SUCCESS;
 	}
 
@@ -471,7 +471,7 @@ int main(int argc, char *argv[]) {
 // +++++++++++
 // Handle invalid number of arguments
 // +++++++++++
-	// if we are bring piped from stdin, we expect at least 2 args (fs and pattern), 
+	// if we are bring piped from stdin, we expect at least 2 args (ggrep and pattern), 
 	// otherwise we expect at least a filename so args 3 or more
 	int expected_args;
 	if (isatty(fileno(stdin))) expected_args=3; else expected_args=2;
