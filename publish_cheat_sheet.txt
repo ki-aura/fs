@@ -1,21 +1,21 @@
 From fs Project Folder
 ===================
 git tag --list
-./fs  "FS_VERSION" fs.c
+./ggrep  "_VERSION" ggrep.c
 git add .
-git commit -m "ready for v2.5.0"
+git commit -m "ready for v2.6.1"
 git push
-git tag -a v2.5.0 -m "Release v2.5.0"
-git push origin v2.5.0
-gh release create v2.5.0 --title "Release v2.5.0" --notes "Release v2.5.0"
+git tag -a v2.6.1 -m "Release v2.6.1"
+git push origin v2.6.1
+gh release create v2.6.1 --title "Release v2.6.1" --notes "Release v2.6.1"
 
 From fs homebrew folder
 =====================
 cd /opt/homebrew/Library/Taps/ki-aura/homebrew-fs
-curl -L -o v2.5.0.tar.gz https://github.com/ki-aura/fs/archive/refs/tags/v2.5.0.tar.gz
-shasum -a 256 v2.5.0.tar.gz
+curl -L -o v2.6.1.tar.gz https://github.com/ki-aura/fs/archive/refs/tags/v2.6.1.tar.gz
+shasum -a 256 v2.6.1.tar.gz
 rm *.gz
 nano Formula/fs.rb
 git add Formula/fs.rb
-git commit -m "ready for v2.5.0"
+git commit -m "ready for v2.6.1"
 git push
