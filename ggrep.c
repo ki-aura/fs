@@ -15,7 +15,7 @@
 #define MAX_LINE_LEN 8192	// longest line we'll try to display or search
 #define UNUSED(x) (void)(x)	// tell compiler when we intentionally don't use a variable
 #define TAB_WIDTH 4
-#define GGREP_VERSION "2.6.1"
+#define GGREP_VERSION "2.6.2"
 
 // ------------------Memory safe allocation helpers ----------
 void *xmalloc(size_t size) {
@@ -330,9 +330,16 @@ void process_file(FILE *fp, const char *filename, const Options *opts, const reg
 // +++++++++++
     int before_size = opts->before;
     BeforeLine *before_buf = NULL;
-    if (before_size > 0) {
-        before_buf = xcalloc(before_size, sizeof(BeforeLine));
-    }
+	char (*before_storage)[MAX_LINE_LEN] = NULL;
+	// allocate full before-line buffer
+	if (before_size > 0) {
+		before_buf = xcalloc(before_size, sizeof(BeforeLine));
+		before_storage = xcalloc(before_size, MAX_LINE_LEN);
+		for (int i = 0; i < before_size; i++) {
+			before_buf[i].line = before_storage[i];
+			before_buf[i].lineno = 0;
+		}
+	}
 
     char *line = NULL;	
     size_t line_len = 0;
@@ -388,7 +395,9 @@ void process_file(FILE *fp, const char *filename, const Options *opts, const reg
 // +++++++++++
             // set after-counter for printing lines after this match
             after_counter = opts->after;
-        }
+        } 
+
+	// end of "if match" logic (still in while loop)
 
 // +++++++++++
 // Handle -c: 2of3: don't print after lines if match count requested
@@ -412,9 +421,9 @@ void process_file(FILE *fp, const char *filename, const Options *opts, const reg
 // +++++++++++
         // --- update circular buffer for "before" lines ---
         if (before_size > 0) {
-            free(before_buf[buf_pos].line);
-            before_buf[buf_pos].line = strdup(line);
-            before_buf[buf_pos].lineno = lineno;
+			strncpy(before_buf[buf_pos].line, line, MAX_LINE_LEN - 1);
+			before_buf[buf_pos].line[MAX_LINE_LEN - 1] = '\0';
+			before_buf[buf_pos].lineno = lineno;
             buf_pos = (buf_pos + 1) % before_size;
             if (buf_count < before_size) buf_count++;
         }
@@ -431,11 +440,8 @@ void process_file(FILE *fp, const char *filename, const Options *opts, const reg
 
     // --- cleanup buffer ---
     free(line);
-    if (before_buf) {
-        for (int j = 0; j < before_size; j++)
-            free(before_buf[j].line);
-        free(before_buf);
-    }
+	if (before_buf) free(before_buf);
+	if (before_storage) free(before_storage);
 }
 
 
