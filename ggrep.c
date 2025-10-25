@@ -107,10 +107,13 @@ void parse_options(int argc, char *argv[], Options *opts, int *first_file_index)
             case 'h': opts->show_help = true; break;
 
             case 'b': {
-                int n = atoi(optarg);
-                if (n < 0) n = 0;
-                if (n > 50) n = 50;
-                opts->before = n;
+            	// only recognise -b if -m not specified, or we wastefully allocate circular buffer later
+            	if(!opts->filename_only){
+					int n = atoi(optarg);
+					if (n < 0) n = 0;
+					if (n > 50) n = 50;
+					opts->before = n;
+					}
                 break;
             }
             case 'a': {
