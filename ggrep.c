@@ -15,7 +15,7 @@
 #define MAX_LINE_LEN 8192	// longest line we'll try to display or search
 #define UNUSED(x) (void)(x)	// tell compiler when we intentionally don't use a variable
 #define TAB_WIDTH 4
-#define GGREP_VERSION "2.6.2"
+#define GGREP_VERSION "2.6.3"
 
 // ------------------Memory safe allocation helpers ----------
 void *xmalloc(size_t size) {
@@ -34,17 +34,6 @@ void *xcalloc(size_t count, size_t size) {
         exit(EXIT_FAILURE);
     }
     return ptr;
-}
-
-void *xrealloc(void *ptr, size_t size) {
-    void *new_ptr = realloc(ptr, size);
-    // If realloc fails, the original block pointed to by ptr is left unchanged.
-    if (new_ptr == NULL && size > 0) {
-        fprintf(stderr, "Fatal: Out of memory (realloc %zu bytes).\n", size);
-        free(ptr); // we can at least free up the memory currently pointed to
-        exit(EXIT_FAILURE);
-    }
-    return new_ptr;
 }
 
 // -----------------------------------------------------
